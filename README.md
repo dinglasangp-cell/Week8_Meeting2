@@ -1,6 +1,6 @@
 Week 8 - Laundry API
 
-A simple REST API for managing laundry shop orders using **Node.js and Express.js.
+A simple REST API for managing laundry shop orders using Node.js and Express.js.
 
 Features
 * View orders
