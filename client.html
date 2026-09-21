@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lavandera - Order Queue</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            margin: 0;
+            padding: 25px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 25px;
+        }
+
+        .table-container {
+            border: 2px solid #333;
+            padding: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #777;
+            font-size: 14px;
+        }
+
+        th {
+            font-weight: bold;
+        }
+
+        select {
+            width: 130px;
+            padding: 3px;
+            font-size: 13px;
+        }
+
+        button {
+            width: 65px;
+            padding: 4px;
+            background: white;
+            border: 1px solid #333;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #eee;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            display: none;
+        }
+
+        .success {
+            display: block;
+            background: #d4edda;
+        }
+
+        .error {
+            display: block;
+            background: #f8d7da;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Lavandera — Order Queue</h1>
+
+        <div id="message" class="message"></div>
+
+        <div class="table-container">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Loads</th>
+                        <th>Status</th>
+                        <th>Update</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody id="orderTable">
+                </tbody>
+            </table>
+
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+
+        const statuses = [
+            "Pending",
+            "Washing",
+            "Ready for Pickup",
+            "Claimed"
+        ];
+
+        async function loadOrders() {
+            const orderTable = document.getElementById('orderTable');
+
+            try {
+                const response = await fetch(`${API_URL}/orders`);
+                const orders = await response.json();
+
+                orderTable.innerHTML = '';
+
+                if (orders.length === 0) {
+                    orderTable.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty">
+                                No current orders.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                orders.forEach(order => {
+                    const row = document.createElement('tr');
+
+                    const options = statuses.map(status => `
+                        <option value="${status}" ${status === order.status ? 'selected' : ''}>
+                            ${status}
+                        </option>
+                    `).join('');
+
+                    row.innerHTML = `
+                        <td>${order.customerName}</td>
+                        <td>${order.loadCount}</td>
+                        <td>${order.status}</td>
+                        <td>
+                            <select onchange="updateStatus(${order.id}, this.value)">
+                                ${options}
+                            </select>
+                        </td>
+                        <td>
+                            <button onclick="cancelOrder(${order.id})">
+                                Cancel
+                            </button>
+                        </td>
+                    `;
+
+                    orderTable.appendChild(row);
+                });
+
+            } catch (error) {
+                orderTable.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty">
+                            Unable to connect to server.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                const response = await fetch(`${API_URL}/orders/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: status
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showMessage(data.error, 'error');
+                    return;
+                }
+
+                showMessage('Order status updated.', 'success');
+
+                loadOrders();
+
+            } catch (error) {
+                showMessage('Unable to connect to server.', 'error');
+            }
+        }
+
+        async function cancelOrder(id) {
+            const confirmCancel = confirm(
+                'Are you sure you want to cancel this order?'
+            );
+
+            if (!confirmCancel) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/orders/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showMessage(data.error, 'error');
+                    return;
+                }
+
+                showMessage('Order cancelled.', 'success');
+
+                loadOrders();
+
+            } catch (error) {
+                showMessage('Unable to connect to server.', 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+
+            message.textContent = text;
+            message.className = `message ${type}`;
+
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 2000);
+
+            message.style.display = 'block';
+        }
+
+        loadOrders();
+    </script>
+
+</body>
+</html>
